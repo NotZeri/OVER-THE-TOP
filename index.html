@@ -39,10 +39,10 @@ canvas#game{position:fixed;inset:0;z-index:1}
 .pin-dots{display:flex;gap:5px;margin-top:5px}
 .pin-dot{width:10px;height:10px;border:1px solid var(--rust);border-radius:50%}
 .pin-dot.used{background:var(--red);box-shadow:0 0 6px var(--red)}
-.center-screen{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;pointer-events:auto;background:rgba(10,8,5,0.95);border:2px solid var(--mud);padding:30px 40px;max-width:1100px;box-shadow:0 20px 60px rgba(0,0,0,0.8);display:flex;gap:30px;align-items:center}
+.center-screen{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;pointer-events:auto;background:rgba(10,8,5,0.95);border:2px solid var(--mud);padding:30px 40px;max-width:1200px;box-shadow:0 20px 60px rgba(0,0,0,0.8);display:flex;gap:30px;align-items:center}
 .center-screen.hidden{display:none}
 .menu-layout{display:flex;gap:30px;width:100%;align-items:center}
-.class-selector{width:250px;border-right:1px solid var(--steel);padding-right:20px;text-align:left}
+.class-selector{width:270px;border-right:1px solid var(--steel);padding-right:20px;text-align:left}
 .class-selector h3{font-family:'Black Ops One',sans-serif;font-size:1.2rem;color:var(--rust);margin-bottom:15px;text-align:center}
 .class-card{background:rgba(0,0,0,0.5);border:1px solid var(--steel);padding:15px;margin-bottom:10px;cursor:pointer;transition:all 0.2s}
 .class-card:hover{border-color:var(--rust)}
@@ -68,7 +68,7 @@ canvas#game{position:fixed;inset:0;z-index:1}
 .map-card h4{font-family:'Black Ops One',sans-serif;color:var(--fg);margin-bottom:5px;font-size:1rem}
 .map-card p{font-size:0.7rem;color:var(--muted);line-height:1.4}
 
-/* Engineer Build Menu */
+/* Build Menus */
 .eng-menu{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,8,5,0.95);border:2px solid var(--rust);padding:20px;z-index:40;display:none;flex-direction:column;gap:10px;pointer-events:auto;min-width:300px}
 .eng-menu.visible{display:flex}
 .eng-title{font-family:'Black Ops One',sans-serif;color:var(--rust);text-align:center;margin-bottom:10px;font-size:1.2rem}
@@ -128,6 +128,10 @@ canvas#game{position:fixed;inset:0;z-index:1}
         <h4>Engineer</h4>
         <p>Revolver. Press B to open Build Menu. Construct Tanks (10s) or Cars (5s). Press F to enter/exit vehicles.</p>
       </div>
+      <div class="class-card" data-class="builder">
+        <h4>Builder</h4>
+        <p>Slow movement. 200 Materials. Larger blocks. Press B to build Tents (spawns soldiers) and Bases (heals allies).</p>
+      </div>
     </div>
     <div class="menu-info">
       <div class="main-title">OVER<br>THE TOP</div>
@@ -140,10 +144,10 @@ canvas#game{position:fixed;inset:0;z-index:1}
       <span>SHIFT</span> — Sprint<br>
       <span>R</span> — Reload<br>
       <span>SPACE</span> — Call airstrike<br>
-      <span>T</span> — Toggle Sandbag Build Mode (25 Mat)<br>
+      <span>T</span> — Toggle Sandbag Build Mode (Costs Mat)<br>
       <span>Q</span> — Class Ability (Medic Heal)<br>
-      <span>B</span> — Engineer Build Menu (Tank/Car)<br>
-      <span>F</span> — Enter/Exit Vehicle<br>
+      <span>B</span> — Engineer/Builder Build Menu<br>
+      <span>F</span> — Enter/Exit Vehicle / Use Tent<br>
       </div>
       <button class="btn-deploy" id="btn-deploy">OVER THE TOP</button>
     </div>
@@ -177,6 +181,42 @@ canvas#game{position:fixed;inset:0;z-index:1}
   </div>
 </div>
 
+<div class="eng-menu" id="builder-menu">
+  <div class="eng-title">BUILDER MENU</div>
+  <div class="eng-btn" data-build="tent">
+    <h4>BUILD TENT (100 MAT)</h4>
+    <p>Auto-spawns soldiers over time. Press F at tent to manually spawn a class (50 Mat).</p>
+  </div>
+  <div class="eng-btn" data-build="base">
+    <h4>BUILD BASE (150 MAT)</h4>
+    <p>20s build time. Does not spawn soldiers, but heals nearby allies and players.</p>
+  </div>
+  <div class="eng-btn" data-build="cancel">
+    <h4>CANCEL</h4>
+    <p>Close menu.</p>
+  </div>
+</div>
+
+<div class="eng-menu" id="spawn-menu">
+  <div class="eng-title">SPAWN SOLDIER (50 MAT)</div>
+  <div class="eng-btn" data-spawn="bolt">
+    <h4>BOLT ACTION</h4>
+    <p>Standard issue rifle. High damage.</p>
+  </div>
+  <div class="eng-btn" data-spawn="medic">
+    <h4>MEDIC</h4>
+    <p>Carbine. Heals nearby allies.</p>
+  </div>
+  <div class="eng-btn" data-spawn="engineer">
+    <h4>ENGINEER</h4>
+    <p>Revolver. Can build vehicles.</p>
+  </div>
+  <div class="eng-btn" data-spawn="cancel">
+    <h4>CLOSE</h4>
+    <p></p>
+  </div>
+</div>
+
 <script>
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
 let W=0,H=0,DPR=window.devicePixelRatio||1;
@@ -204,14 +244,14 @@ let NO_MANS_LAND={x:420,y:200,w:2360,h:1400};
 let blueBunkers = [];
 let barbedWire = [];
 let waterAreas = [];
-let props = []; // Trees, etc.
+let props = [];
 
 function setupMap(mapName) {
   blueBunkers = [];
   barbedWire = [];
   waterAreas = [];
   props = [];
-  blocks = []; // Clear pre-existing ruins/blocks
+  blocks = [];
   
   if(mapName === 'trench') {
     RED_SPAWN={x:120,y:200,w:300,h:1400};
@@ -230,22 +270,19 @@ function setupMap(mapName) {
     for(let i=0;i<60;i++){ barbedWire.push({x:800+Math.random()*1500, y:200+Math.random()*1400}); }
   } 
   else if(mapName === 'beach') {
-    RED_SPAWN={x:100,y:200,w:1000,h:1400}; // Beach
-    BLUE_SPAWN={x:2100,y:200,w:1000,h:1400}; // Grass
+    RED_SPAWN={x:100,y:200,w:1000,h:1400};
+    BLUE_SPAWN={x:2100,y:200,w:1000,h:1400};
     NO_MANS_LAND={x:1100,y:200,w:1000,h:1400};
     
-    // Water River with 2 land bridges
     waterAreas = [
       {x:1400, y:200, w:400, h:200},
       {x:1400, y:600, w:400, h:500},
       {x:1400, y:1300, w:400, h:300}
     ];
     
-    // Pre-existing Ruins (Stone blocks)
     for(let i=0; i<25; i++) {
       let bx = 1200 + Math.random()*800;
       let by = 200 + Math.random()*1400;
-      // Don't spawn on water
       let onWater = false;
       for(const w of waterAreas) {
         if(bx > w.x - 40 && bx < w.x + w.w + 40 && by > w.y - 40 && by < w.y + w.h + 40) onWater = true;
@@ -255,7 +292,6 @@ function setupMap(mapName) {
       }
     }
     
-    // Palm Trees
     for(let i=0; i<40; i++) {
       let tx = Math.random()*3200;
       let ty = 200 + Math.random()*1400;
@@ -275,7 +311,7 @@ let state='menu';
 let camera={x:0,y:0};
 let screenShake=0,flashAlpha=0;
 let day=1,dayTimer=0,phaseType='infantry';
-let mortars=[],bullets=[],particles=[],craters=[],blocks=[],vehicles=[];
+let mortars=[],bullets=[],particles=[],craters=[],blocks=[],vehicles=[],structures=[];
 let airstrikeCharge=0;
 let player=null;
 let dialogueTimer=0,dialogueText='';
@@ -283,19 +319,18 @@ let soldiers=[];
 let keys={};
 let mouse={x:0,y:0,worldX:0,worldY:0,down:false};
 let buildMode=false;
-let materials=100;
+let materials=100, maxMaterials=100;
 let selectedClass = 'bolt';
 let selectedMap = 'trench';
-let engMenuOpen = false;
-let vehicleGhost = null;
+let engMenuOpen = false, builderMenuOpen = false, spawnMenuOpen = false;
+let vehicleGhost = null, structureGhost = null;
+let activeTent = null;
 
-// UI Cache
 let ui = null;
 let uiUpdateTimer = 0;
 let prevPins = -1;
 let prevClass = '';
 
-// Class Selection Logic
 document.querySelectorAll('.class-card').forEach(card => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.class-card').forEach(c => c.classList.remove('active'));
@@ -304,7 +339,6 @@ document.querySelectorAll('.class-card').forEach(card => {
   });
 });
 
-// Map Selection Logic
 document.querySelectorAll('.map-card').forEach(card => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.map-card').forEach(c => c.classList.remove('active'));
@@ -314,20 +348,44 @@ document.querySelectorAll('.map-card').forEach(card => {
 });
 
 // Eng Menu Logic
-document.querySelectorAll('.eng-btn').forEach(btn => {
+document.querySelectorAll('#eng-menu .eng-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const buildType = btn.dataset.build;
-    if(buildType === 'cancel') {
-      engMenuOpen = false;
-      vehicleGhost = null;
-      document.getElementById('eng-menu').classList.remove('visible');
-      return;
-    }
+    if(buildType === 'cancel') { engMenuOpen = false; vehicleGhost = null; document.getElementById('eng-menu').classList.remove('visible'); return; }
     const cost = buildType === 'tank' ? 100 : 50;
     if(materials >= cost) {
       vehicleGhost = { type: buildType, cost: cost };
       engMenuOpen = false;
       document.getElementById('eng-menu').classList.remove('visible');
+    }
+  });
+});
+
+// Builder Menu Logic
+document.querySelectorAll('#builder-menu .eng-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const buildType = btn.dataset.build;
+    if(buildType === 'cancel') { builderMenuOpen = false; structureGhost = null; document.getElementById('builder-menu').classList.remove('visible'); return; }
+    const cost = buildType === 'tent' ? 100 : 150;
+    if(materials >= cost) {
+      structureGhost = { type: buildType, cost: cost };
+      builderMenuOpen = false;
+      document.getElementById('builder-menu').classList.remove('visible');
+    }
+  });
+});
+
+// Spawn Menu Logic
+document.querySelectorAll('#spawn-menu .eng-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const spawnType = btn.dataset.spawn;
+    if(spawnType === 'cancel') { spawnMenuOpen = false; document.getElementById('spawn-menu').classList.remove('visible'); return; }
+    if(materials >= 50 && activeTent) {
+      materials -= 50;
+      addSoldier('red', activeTent.x + (Math.random()-0.5)*40, activeTent.y + 40, spawnType);
+      showDialogue(`${spawnType.toUpperCase()} SPAWNED!`);
+      spawnMenuOpen = false;
+      document.getElementById('spawn-menu').classList.remove('visible');
     }
   });
 });
@@ -399,7 +457,12 @@ if(this.boardedVehicle){
 
 const isSprinting = this.isPlayer && keys['shift'] && (keys['w']||keys['a']||keys['s']||keys['d']) && !player.vehicle;
 const ACCEL = isSprinting ? 0.3 : 0.15;
-const MAX_SPEED = isSprinting ? 4.5 : 2.5;
+let MAX_SPEED = isSprinting ? 4.5 : 2.5;
+
+// Builder is slower
+if(this.isPlayer && this.playerClass === 'builder'){
+  MAX_SPEED = isSprinting ? 3.0 : 1.8;
+}
 
 if(!this.isPlayer)this.aiUpdate(dt, ACCEL, MAX_SPEED);
 else this.playerUpdate(dt, ACCEL, MAX_SPEED);
@@ -420,13 +483,19 @@ for(const b of blocks){
   }
 }
 
-// Water Collision (impassable)
+// Structure Collision
+for(const s of structures){
+  if(s.dead || s.type === 'tent') continue; // Tents have no collision
+  if(this.x > s.x - this.size && this.x < s.x + s.w + this.size && this.y > s.y - this.size && this.y < s.y + s.h + this.size){
+    this.x -= this.vx*dt; this.y -= this.vy*dt; this.vx=0; this.vy=0; break;
+  }
+}
+
+// Water Collision
 for(const w of waterAreas){
   if(this.x > w.x - this.size && this.x < w.x + w.w + this.size && this.y > w.y - this.size && this.y < w.y + w.h + this.size){
-    // Push back
     this.x -= this.vx*dt; this.y -= this.vy*dt;
     this.vx *= -0.5; this.vy *= -0.5;
-    // Add perpendicular push to help AI path around
     if(!this.isPlayer) {
       if(Math.abs(this.vx) > Math.abs(this.vy)) this.vy += (Math.random()-0.5) * 2;
       else this.vx += (Math.random()-0.5) * 2;
@@ -435,7 +504,7 @@ for(const w of waterAreas){
   }
 }
 
-// Tree Collision (impassable)
+// Tree Collision
 for(const p of props){
   const dx = this.x - p.x, dy = this.y - p.y;
   const dist = Math.sqrt(dx*dx + dy*dy);
@@ -462,8 +531,7 @@ if(player.vehicle){
   const vMax = v.type === 'tank' ? 3.5 : 6.5;
   if(speed > vMax){ v.vx = (v.vx/speed)*vMax; v.vy = (v.vy/speed)*vMax; }
   
-  player.x = v.x;
-  player.y = v.y;
+  player.x = v.x; player.y = v.y;
   player.angle = Math.atan2(mouse.worldY-v.y, mouse.worldX-v.x);
   v.angle = player.angle;
   
@@ -478,9 +546,7 @@ if(player.vehicle){
       soldiers.forEach(s=>{if(!s.alive)return;const dx=s.x-tx,dy=s.y-ty;const d=Math.sqrt(dx*dx+dy*dy);if(d<r)s.takeDamage(90*(1-d/r),player)});
       vehicles.forEach(veh => { if(veh === v) return; const dx=veh.x-tx,dy=veh.y-ty;const d=Math.sqrt(dx*dx+dy*dy);if(d<r)veh.health -= 200*(1-d/r); });
     } else {
-      if(player.ammo>0 && player.reloadTimer<=0){
-        player.shoot();
-      }
+      if(player.ammo>0 && player.reloadTimer<=0){ player.shoot(); }
     }
   }
   return;
@@ -574,7 +640,6 @@ for(let i=0; i<steps; i++){
   const px = muzzleX + dx * t;
   const py = muzzleY + dy * t;
   
-  // Check Trees
   for (const p of props) {
     const pdx = px - p.x, pdy = py - p.y;
     if (Math.sqrt(pdx*pdx + pdy*pdy) < p.r) {
@@ -586,7 +651,6 @@ for(let i=0; i<steps; i++){
   }
   if (hitTree) break;
 
-  // Check Blocks
   for (const b of blocks) {
     if (b.dead) continue;
     if (px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h) {
@@ -667,9 +731,7 @@ else{
   if(this.isPlayer){
     screenShake=20;
     showDialogue("YOU'RE PINNED DOWN! GET BACK IN THE FIGHT!");
-    if(player.vehicle){
-      exitVehicle();
-    }
+    if(player.vehicle){ exitVehicle(); }
   }
 }
 }
@@ -751,14 +813,12 @@ class Vehicle{
   constructor(x, y, type, team){
     this.x = x; this.y = y;
     this.type = type; this.team = team;
-    this.angle = 0;
-    this.vx = 0; this.vy = 0;
+    this.angle = 0; this.vx = 0; this.vy = 0;
     this.buildTimer = type === 'tank' ? 600 : 300;
     this.built = false;
     this.health = type === 'tank' ? 500 : 150;
     this.maxHealth = this.health;
-    this.driver = null;
-    this.passengers = [];
+    this.driver = null; this.passengers = [];
     this.fireCooldown = 0;
     this.size = type === 'tank' ? 50 : 35;
     this.dead = false;
@@ -774,8 +834,7 @@ class Vehicle{
       return;
     }
     
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
+    this.x += this.vx * dt; this.y += this.vy * dt;
     this.vx *= 0.9; this.vy *= 0.9;
     this.x = Math.max(40, Math.min(BF_W-40, this.x));
     this.y = Math.max(80, Math.min(BF_H-80, this.y));
@@ -796,14 +855,12 @@ class Vehicle{
       }
     }
     
-    // Vehicle Water Collision
     for(const w of waterAreas){
       if(this.x > w.x - this.size && this.x < w.x + w.w + this.size && this.y > w.y - this.size && this.y < w.y + w.h + this.size){
         this.x -= this.vx*dt; this.y -= this.vy*dt; this.vx=0; this.vy=0;
       }
     }
     
-    // Vehicle Tree Collision
     for(const p of props){
       const dx = this.x - p.x, dy = this.y - p.y;
       const dist = Math.sqrt(dx*dx + dy*dy);
@@ -832,24 +889,17 @@ class Vehicle{
     if(!this.built){
       ctx.fillStyle = 'rgba(196, 160, 42, 0.3)';
       ctx.fillRect(sx - this.size, sy - this.size, this.size*2, this.size*2);
-      ctx.strokeStyle = '#c4a02a';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#c4a02a'; ctx.lineWidth = 2;
       ctx.strokeRect(sx - this.size, sy - this.size, this.size*2, this.size*2);
       const p = 1 - this.buildTimer / (this.type === 'tank' ? 600 : 300);
-      ctx.fillStyle = '#000';
-      ctx.fillRect(sx - 30, sy - this.size - 15, 60, 6);
-      ctx.fillStyle = '#4aca3a';
-      ctx.fillRect(sx - 30, sy - this.size - 15, 60 * p, 6);
-      ctx.fillStyle = '#fff';
-      ctx.font = "bold 10px 'JetBrains Mono'";
-      ctx.textAlign = 'center';
+      ctx.fillStyle = '#000'; ctx.fillRect(sx - 30, sy - this.size - 15, 60, 6);
+      ctx.fillStyle = '#4aca3a'; ctx.fillRect(sx - 30, sy - this.size - 15, 60 * p, 6);
+      ctx.fillStyle = '#fff'; ctx.font = "bold 10px 'JetBrains Mono'"; ctx.textAlign = 'center';
       ctx.fillText(`BUILDING ${Math.ceil(this.buildTimer/60)}s`, sx, sy - this.size - 20);
       return;
     }
     
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(this.angle);
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(this.angle);
     
     if(this.type === 'tank'){
       ctx.fillStyle = '#222';
@@ -857,22 +907,15 @@ class Vehicle{
       ctx.fillRect(this.size-15, -this.size, 15, this.size*2);
       ctx.fillStyle = '#555';
       ctx.fillRect(-this.size+10, -this.size+5, this.size*2-20, this.size*2-10);
-      ctx.strokeStyle = '#111';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 3;
       ctx.strokeRect(-this.size+10, -this.size+5, this.size*2-20, this.size*2-10);
-      ctx.fillStyle = '#444';
-      ctx.beginPath();
-      ctx.arc(0, 0, 20, 0, Math.PI*2);
-      ctx.fill();
-      ctx.strokeStyle = '#111';
-      ctx.stroke();
-      ctx.fillStyle = '#111';
-      ctx.fillRect(15, -4, 35, 8);
+      ctx.fillStyle = '#444'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#111'; ctx.stroke();
+      ctx.fillStyle = '#111'; ctx.fillRect(15, -4, 35, 8);
     } else {
       ctx.fillStyle = this.team === 'red' ? '#8a2828' : '#2848a8';
       ctx.fillRect(-this.size, -this.size+5, this.size*2, this.size*2-10);
-      ctx.strokeStyle = '#111';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
       ctx.strokeRect(-this.size, -this.size+5, this.size*2, this.size*2-10);
       ctx.fillStyle = 'rgba(150, 200, 255, 0.6)';
       ctx.fillRect(-5, -this.size+10, 15, this.size*2-20);
@@ -881,8 +924,7 @@ class Vehicle{
     ctx.restore();
     
     if(this.health < this.maxHealth){
-      ctx.fillStyle = 'rgba(0,0,0,0.8)';
-      ctx.fillRect(sx - 30, sy - this.size - 12, 60, 5);
+      ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(sx - 30, sy - this.size - 12, 60, 5);
       ctx.fillStyle = this.health > this.maxHealth*0.5 ? '#4aca3a' : this.health > this.maxHealth*0.25 ? '#c4a02a' : '#aa2828';
       ctx.fillRect(sx - 30, sy - this.size - 12, 60 * (this.health/this.maxHealth), 5);
     }
@@ -890,13 +932,121 @@ class Vehicle{
     if(!this.driver && player && !player.vehicle){
       const dx = player.x - this.x, dy = player.y - this.y;
       if(Math.sqrt(dx*dx + dy*dy) < 100){
-        ctx.fillStyle = '#fff';
-        ctx.font = "bold 12px 'JetBrains Mono'";
-        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff'; ctx.font = "bold 12px 'JetBrains Mono'"; ctx.textAlign = 'center';
         ctx.fillText('[F] ENTER', sx, sy - this.size - 20);
       }
     }
   }
+}
+
+class Structure{
+  constructor(x, y, type, team){
+    this.x = x; this.y = y;
+    this.type = type; this.team = team;
+    this.buildTimer = type === 'tent' ? 300 : 1200; // 5s or 20s
+    this.built = false;
+    this.health = type === 'tent' ? 200 : 1000;
+    this.maxHealth = this.health;
+    this.spawnCooldown = 1200; // 20s auto spawn
+    this.w = type === 'tent' ? 50 : 100;
+    this.h = type === 'tent' ? 50 : 100;
+    this.dead = false;
+  }
+  update(dt){
+    if(!this.built){
+      this.buildTimer -= dt;
+      if(this.buildTimer <= 0){
+        this.built = true;
+        showDialogue(this.type === 'tent' ? 'TENT READY!' : 'BASE READY!');
+      }
+      return;
+    }
+    
+    if(this.type === 'tent'){
+      this.spawnCooldown -= dt;
+      if(this.spawnCooldown <= 0){
+        if(soldiers.filter(s=>s.team===this.team && s.alive).length < 35){
+          addSoldier(this.team, this.x + (Math.random()-0.5)*30, this.y + 40, 'bolt');
+          this.spawnCooldown = 1200;
+        }
+      }
+    } else if(this.type === 'base'){
+      // Heal nearby allies
+      soldiers.forEach(s => {
+        if(s.team === this.team && s.alive && s.health < s.maxHealth){
+          const dx = s.x - this.x, dy = s.y - this.y;
+          if(Math.sqrt(dx*dx + dy*dy) < 250){
+            s.health = Math.min(s.maxHealth, s.health + 0.5 * dt);
+          }
+        }
+      });
+    }
+  }
+  draw(){
+    const sx = this.x - camera.x, sy = this.y - camera.y;
+    if(sx < -100 || sx > W + 100) return;
+    
+    if(!this.built){
+      ctx.fillStyle = 'rgba(196, 99, 42, 0.3)';
+      ctx.fillRect(sx, sy, this.w, this.h);
+      ctx.strokeStyle = '#c4632a'; ctx.lineWidth = 2;
+      ctx.strokeRect(sx, sy, this.w, this.h);
+      const p = 1 - this.buildTimer / (this.type === 'tent' ? 300 : 1200);
+      ctx.fillStyle = '#000'; ctx.fillRect(sx, sy - 15, this.w, 6);
+      ctx.fillStyle = '#4aca3a'; ctx.fillRect(sx, sy - 15, this.w * p, 6);
+      ctx.fillStyle = '#fff'; ctx.font = "bold 10px 'JetBrains Mono'"; ctx.textAlign = 'center';
+      ctx.fillText(`BUILDING ${Math.ceil(this.buildTimer/60)}s`, sx + this.w/2, sy - 20);
+      return;
+    }
+    
+    if(this.type === 'tent'){
+      ctx.fillStyle = '#5a3818';
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + this.h);
+      ctx.lineTo(sx + this.w/2, sy);
+      ctx.lineTo(sx + this.w, sy + this.h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#3a2010'; ctx.lineWidth = 2;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#555';
+      ctx.fillRect(sx, sy, this.w, this.h);
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 4;
+      ctx.strokeRect(sx, sy, this.w, this.h);
+      // Sandbags
+      ctx.fillStyle = '#5a4828';
+      for(let i=0; i<this.w; i+=22){
+        ctx.beginPath(); ctx.arc(sx+i+11, sy, 11, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx+i+11, sy+this.h, 11, 0, Math.PI*2); ctx.fill();
+      }
+      // Heal aura
+      ctx.strokeStyle = 'rgba(74, 202, 58, 0.2)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(sx + this.w/2, sy + this.h/2, 250, 0, Math.PI*2); ctx.stroke();
+    }
+    
+    if(this.health < this.maxHealth){
+      ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(sx, sy - 10, this.w, 5);
+      ctx.fillStyle = this.health > this.maxHealth*0.5 ? '#4aca3a' : this.health > this.maxHealth*0.25 ? '#c4a02a' : '#aa2828';
+      ctx.fillRect(sx, sy - 10, this.w * (this.health/this.maxHealth), 5);
+    }
+    
+    // Enter prompt
+    if(this.type === 'tent' && player && !player.vehicle){
+      const dx = player.x - (this.x + this.w/2), dy = player.y - (this.y + this.h/2);
+      if(Math.sqrt(dx*dx + dy*dy) < 100){
+        ctx.fillStyle = '#fff'; ctx.font = "bold 12px 'JetBrains Mono'"; ctx.textAlign = 'center';
+        ctx.fillText('[F] SPAWN MENU', sx + this.w/2, sy - 15);
+      }
+    }
+  }
+}
+
+function addSoldier(team, x, y, type) {
+  const s = new Soldier(team, x, y, false);
+  if(type === 'medic'){ s.maxAmmo = 10; s.ammo = 10; s.fireRate = 8; s.damage = 20; }
+  else if(type === 'engineer'){ s.maxAmmo = 6; s.ammo = 6; s.fireRate = 15; s.damage = 40; }
+  soldiers.push(s);
 }
 
 function spawnSoldiers(){
@@ -915,6 +1065,10 @@ if(i===0){
   } else if(selectedClass === 'engineer'){
     player.maxAmmo = 6; player.ammo = 6; player.reserve = 30;
     player.fireRate = 15; player.damage = 40;
+  } else if(selectedClass === 'builder'){
+    player.maxAmmo = 5; player.ammo = 5; player.reserve = 25;
+    player.fireRate = 18; player.damage = 34;
+    maxMaterials = 200; materials = 200;
   } else {
     player.playerClass = 'bolt';
     player.maxAmmo = 5; player.ammo = 5; player.reserve = 25;
@@ -949,10 +1103,7 @@ s.target=null;s.ammo=s.maxAmmo;
 }
 
 function enterVehicle(){
-  if(player.vehicle) {
-    exitVehicle();
-    return;
-  }
+  if(player.vehicle) { exitVehicle(); return; }
   let nearestV = null, nd = 150;
   for(const v of vehicles){
     if(!v.built || v.driver || v.team !== player.team) continue;
@@ -1019,14 +1170,25 @@ window.addEventListener('mousedown',()=>{
     return;
   }
   
+  if(structureGhost){
+    if(materials >= structureGhost.cost){
+      structures.push(new Structure(mouse.worldX - 25, mouse.worldY - 25, structureGhost.type, 'red'));
+      materials -= structureGhost.cost;
+      updateUI(0);
+      showDialogue(structureGhost.type === 'tent' ? 'BUILDING TENT...' : 'BUILDING BASE...');
+    }
+    structureGhost = null;
+    return;
+  }
+  
   mouse.down=true;
-  if(!engMenuOpen && !buildMode) fire();
+  if(!engMenuOpen && !builderMenuOpen && !spawnMenuOpen && !buildMode) fire();
   else if(buildMode) handleClick();
 });
 window.addEventListener('mouseup',()=>mouse.down=false);
 window.addEventListener('keydown',e=>{
 const k=e.key.toLowerCase();keys[k]=true;
-if(k==='t' && !engMenuOpen && !player.vehicle){
+if(k==='t' && !engMenuOpen && !player.vehicle && !builderMenuOpen && !spawnMenuOpen){
 buildMode=!buildMode;
 const ind=document.getElementById('view-ind');
 ind.textContent = buildMode ? '[T] BUILD MODE ON' : '[T] BUILD MODE OFF';
@@ -1034,10 +1196,37 @@ ind.classList.toggle('active', buildMode);
 }
 if(k==='r'){reload()}
 if(e.code==='Space'&&state==='playing'){callAirstrike();e.preventDefault()}
-if(k==='f' && state==='playing'){enterVehicle()}
-if(k==='b' && state==='playing' && player.playerClass === 'engineer'){
-  engMenuOpen = !engMenuOpen;
-  document.getElementById('eng-menu').classList.toggle('visible', engMenuOpen);
+if(k==='f' && state==='playing'){
+  if(spawnMenuOpen){
+    spawnMenuOpen = false;
+    document.getElementById('spawn-menu').classList.remove('visible');
+    return;
+  }
+  
+  // Check tents
+  let nearestTent = null, nd = 100;
+  for(const s of structures){
+    if(!s.built || s.type !== 'tent' || s.team !== player.team) continue;
+    const dx = (s.x + s.w/2) - player.x, dy = (s.y + s.h/2) - player.y;
+    const d = Math.sqrt(dx*dx+dy*dy);
+    if(d < nd){ nd = d; nearestTent = s; }
+  }
+  if(nearestTent){
+    activeTent = nearestTent;
+    spawnMenuOpen = true;
+    document.getElementById('spawn-menu').classList.add('visible');
+  } else {
+    enterVehicle();
+  }
+}
+if(k==='b' && state==='playing'){
+  if(player.playerClass === 'engineer'){
+    engMenuOpen = !engMenuOpen;
+    document.getElementById('eng-menu').classList.toggle('visible', engMenuOpen);
+  } else if(player.playerClass === 'builder'){
+    builderMenuOpen = !builderMenuOpen;
+    document.getElementById('builder-menu').classList.toggle('visible', builderMenuOpen);
+  }
 }
 if(k==='q' && state==='playing' && player.alive && player.playerClass==='medic' && player.healCooldown<=0 && !player.vehicle){
   player.healCooldown = 600;
@@ -1062,9 +1251,12 @@ window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
 
 function handleClick(){
 if(buildMode){
-  if(materials >= 25){
-    blocks.push({x:mouse.worldX-20, y:mouse.worldY-20, w:40, h:40, health:150, team:'red', dead:false, isStone:false});
-    materials -= 25;
+  const cost = player.playerClass === 'builder' ? 50 : 25;
+  const sz = player.playerClass === 'builder' ? 60 : 40;
+  const hp = player.playerClass === 'builder' ? 300 : 100;
+  if(materials >= cost){
+    blocks.push({x:mouse.worldX-sz/2, y:mouse.worldY-sz/2, w:sz, h:sz, health:hp, team:'red', dead:false, isStone:false});
+    materials -= cost;
     updateUI(0);
   }
 }
@@ -1099,8 +1291,8 @@ function updateUI(dt){
   ui.strike.style.width=airstrikeCharge+'%';
   ui.kills.textContent=player.kills;
   ui.ammo.textContent=player.vehicle ? (player.vehicle.type==='tank'?'SHELL':'DRIVER') : (player.reloadTimer>0?'RELOADING':`${player.ammo}/${player.reserve}`);
-  ui.mats.textContent = `${Math.floor(materials)}/100`;
-  ui.matbar.style.width = materials + '%';
+  ui.mats.textContent = `${Math.floor(materials)}/${maxMaterials}`;
+  ui.matbar.style.width = (materials / maxMaterials * 100) + '%';
   
   let status='FIT';
   if(player.health<30)status='PINNED';
@@ -1123,6 +1315,9 @@ function updateUI(dt){
     } else if(player.playerClass === 'engineer'){
       ui.ability_box.style.display = 'block';
       ui.ability_box.querySelector('.stat-label').textContent = 'BUILD [B]';
+    } else if(player.playerClass === 'builder'){
+      ui.ability_box.style.display = 'block';
+      ui.ability_box.querySelector('.stat-label').textContent = 'BUILD [B]';
     } else {
       ui.ability_box.style.display = 'none';
     }
@@ -1136,7 +1331,7 @@ function updateUI(dt){
       ui.ability.textContent = 'READY';
       ui.ability.style.color = '#4aca3a';
     }
-  } else if(player.playerClass === 'engineer'){
+  } else if(player.playerClass === 'engineer' || player.playerClass === 'builder'){
     ui.ability.textContent = 'OPEN';
     ui.ability.style.color = '#c4a02a';
   }
@@ -1183,6 +1378,7 @@ renderTopDown();
 
 mortars.forEach(m=>m.draw());
 vehicles.forEach(v=>v.draw());
+structures.forEach(s=>s.draw());
 
 bullets.forEach(b=>{
 const sx=b.x1-camera.x,sy=b.y1-camera.y;
@@ -1234,11 +1430,13 @@ ctx.fillText(dialogueText,W/2,228);
 }
 
 if(buildMode){
-  ctx.fillStyle = materials >= 25 ? 'rgba(196, 160, 42, 0.4)' : 'rgba(255, 50, 50, 0.4)';
-  ctx.fillRect(mouse.worldX-20-camera.x, mouse.worldY-20-camera.y, 40, 40);
-  ctx.strokeStyle = materials >= 25 ? '#c4a02a' : '#ff3838';
+  const cost = player.playerClass === 'builder' ? 50 : 25;
+  const sz = player.playerClass === 'builder' ? 60 : 40;
+  ctx.fillStyle = materials >= cost ? 'rgba(196, 160, 42, 0.4)' : 'rgba(255, 50, 50, 0.4)';
+  ctx.fillRect(mouse.worldX-sz/2-camera.x, mouse.worldY-sz/2-camera.y, sz, sz);
+  ctx.strokeStyle = materials >= cost ? '#c4a02a' : '#ff3838';
   ctx.lineWidth = 2;
-  ctx.strokeRect(mouse.worldX-20-camera.x, mouse.worldY-20-camera.y, 40, 40);
+  ctx.strokeRect(mouse.worldX-sz/2-camera.x, mouse.worldY-sz/2-camera.y, sz, sz);
 }
 
 if(vehicleGhost){
@@ -1248,6 +1446,15 @@ if(vehicleGhost){
   ctx.strokeStyle = materials >= vehicleGhost.cost ? '#aaa' : '#ff3838';
   ctx.lineWidth = 2;
   ctx.strokeRect(mouse.worldX-sz-camera.x, mouse.worldY-sz-camera.y, sz*2, sz*2);
+}
+
+if(structureGhost){
+  ctx.fillStyle = materials >= structureGhost.cost ? 'rgba(196, 99, 42, 0.4)' : 'rgba(255, 50, 50, 0.4)';
+  const sz = structureGhost.type === 'tent' ? 50 : 100;
+  ctx.fillRect(mouse.worldX-sz/2-camera.x, mouse.worldY-sz/2-camera.y, sz, sz);
+  ctx.strokeStyle = materials >= structureGhost.cost ? '#c4632a' : '#ff3838';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(mouse.worldX-sz/2-camera.x, mouse.worldY-sz/2-camera.y, sz, sz);
 }
 }
 
@@ -1354,18 +1561,15 @@ if(selectedMap === 'trench') {
   ctx.fillText('BLUE LINE',BLUE_SPAWN.x+BLUE_SPAWN.w/2-camera.x+shakeX,BLUE_SPAWN.y-15-camera.y+shakeY);
 } 
 else if(selectedMap === 'beach') {
-  // Sand background
   ctx.fillStyle='#dcb35c';
   ctx.fillRect(0,0,W,H);
   
-  // Grass patches (Blue side)
   const gG=ctx.createLinearGradient(BLUE_SPAWN.x-camera.x+shakeX,0,BLUE_SPAWN.x+BLUE_SPAWN.w-camera.x+shakeX,0);
   gG.addColorStop(0,'#3a4a28');
   gG.addColorStop(1,'#4a5a38');
   ctx.fillStyle=gG;
   ctx.fillRect(BLUE_SPAWN.x-camera.x+shakeX,BLUE_SPAWN.y-camera.y+shakeY,BLUE_SPAWN.w,BLUE_SPAWN.h);
   
-  // Grid
   ctx.strokeStyle='rgba(0,0,0,0.05)';ctx.lineWidth=1;
   for(let x=0;x<BF_W;x+=100){
     const sx=x-camera.x+shakeX;
@@ -1376,13 +1580,11 @@ else if(selectedMap === 'beach') {
     if(sy>-100&&sy<H+100){ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(W,sy);ctx.stroke()}
   }
   
-  // Water
   waterAreas.forEach(w => {
     const sx=w.x-camera.x+shakeX, sy=w.y-camera.y+shakeY;
     if(sx>-200&&sx<W+200){
       ctx.fillStyle='#2a5a8a';
       ctx.fillRect(sx,sy,w.w,w.h);
-      // Waves
       ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=2;
       for(let i=0; i<w.w; i+=20){
         ctx.beginPath();
@@ -1393,7 +1595,6 @@ else if(selectedMap === 'beach') {
     }
   });
   
-  // Craters
   craters.forEach(c=>{
     const sx=c.x-camera.x+shakeX,sy=c.y-camera.y+shakeY;
     if(sx<-100||sx>W+100)return;
@@ -1403,7 +1604,6 @@ else if(selectedMap === 'beach') {
     ctx.beginPath();ctx.arc(sx,sy,c.size,0,Math.PI*2);ctx.stroke();
   });
   
-  // Ruins (Stone blocks)
   blocks.forEach(b => {
     if(b.dead) return;
     const sx=b.x-camera.x+shakeX, sy=b.y-camera.y+shakeY;
@@ -1413,7 +1613,6 @@ else if(selectedMap === 'beach') {
     ctx.strokeStyle = b.isStone ? '#444' : '#3a2a10'; ctx.lineWidth = 2;
     ctx.strokeRect(sx, sy, b.w, b.h);
     if(b.isStone){
-       // Stone texture
        ctx.fillStyle='#666';
        ctx.fillRect(sx+5, sy+5, 10, 10);
        ctx.fillRect(sx+20, sy+15, 10, 10);
@@ -1431,21 +1630,17 @@ else if(selectedMap === 'beach') {
     }
   });
   
-  // Trees
   props.forEach(p => {
     const sx=p.x-camera.x+shakeX, sy=p.y-camera.y+shakeY;
     if(sx<-30||sx>W+30)return;
-    // Trunk
     ctx.fillStyle='#3a2010';
     ctx.fillRect(sx-3, sy-3, 6, 6);
-    // Canopy
     ctx.fillStyle='#1a3010';
     ctx.beginPath();ctx.arc(sx, sy, p.r, 0, Math.PI*2);ctx.fill();
     ctx.fillStyle='#2a5020';
     ctx.beginPath();ctx.arc(sx-p.r*0.3, sy-p.r*0.3, p.r*0.7, 0, Math.PI*2);ctx.fill();
   });
   
-  // Spawn zones
   ctx.font="bold 16px 'Black Ops One'";ctx.textAlign='center';
   ctx.fillStyle='rgba(255,60,60,0.5)';
   ctx.fillText('RED BEACH',RED_SPAWN.x+RED_SPAWN.w/2-camera.x+shakeX,RED_SPAWN.y-15-camera.y+shakeY);
@@ -1492,10 +1687,7 @@ function loop(now){
       vehicles.forEach(v => {
         v.update(dt);
         if (v.health <= 0) {
-          if (v.driver) {
-            v.driver.vehicle = null;
-            v.driver = null;
-          }
+          if (v.driver) { v.driver.vehicle = null; v.driver = null; }
           v.passengers.forEach(p => {
             p.boardedVehicle = null;
             p.x = v.x + (Math.random() - 0.5) * 60;
@@ -1513,6 +1705,12 @@ function loop(now){
         }
       });
       vehicles = vehicles.filter(v => !v.dead);
+
+      structures.forEach(s => {
+        s.update(dt);
+        if (s.health <= 0) s.dead = true;
+      });
+      structures = structures.filter(s => !s.dead);
 
       for (let i = mortars.length - 1; i >= 0; i--) { if (!mortars[i].update(dt)) mortars.splice(i, 1); }
       spawnMortars(dt);
@@ -1534,7 +1732,7 @@ function loop(now){
 
       updateDay(dt);
       airstrikeCharge = Math.min(100, airstrikeCharge + 0.06 * dt);
-      materials = Math.min(100, materials + 0.1 * dt);
+      materials = Math.min(maxMaterials, materials + 0.1 * dt);
       if (dialogueTimer > 0) dialogueTimer -= dt;
 
       const vig = document.getElementById('blood-vig');
@@ -1560,7 +1758,8 @@ function loop(now){
 
 document.getElementById('btn-deploy').onclick=()=>{
 initAudio();
-setupMap(selectedMap); // Initialize map obstacles/spawns
+maxMaterials = 100; materials = 100; // Reset for non-builders
+setupMap(selectedMap);
 state='playing';spawnSoldiers();
 day=1;dayTimer=0;phaseType='infantry';
 document.getElementById('start-screen').classList.add('hidden');
